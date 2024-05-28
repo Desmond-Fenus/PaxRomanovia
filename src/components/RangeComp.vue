@@ -3,22 +3,22 @@
     <input
       type="range"
       class="slider"
-      id="myRange"
       min="1600"
       max="1920"
       step="20"
-      value="0.00"
+      value="1600"
       @input="setValue"
-      draggable="false"
+      @change="hideValueAfterDelay"
+      @mousedown="clearHideTimeout"
+      @mouseup="hideValueAfterDelay"
       ref="range"
     />
 
     <span class="minValInput">1600</span>
-    <span
-      class="minValInput"
-      id="currentValue"
-      style="position: absolute; background: rgb(33 33 33)"
-    ></span>
+    <span :style="{ 'display': displayAttr, 'left': offsetLeft + 'px'}"
+      class="curValInput"
+      ref="currentValue"
+    >{{ yearValue }}</span>
     <span class="maxValInput">1920</span>
   </div>
 </template>
@@ -33,6 +33,10 @@ export default {
 
   data() {
     return {
+      displayAttr: "none",
+      offsetLeft: 500,
+      yearValue: 1600,
+      hideTimeout: null,
       icons: {
         rangemarker: require("@/assets/rangeIcon.png"),
       },
@@ -40,29 +44,44 @@ export default {
   },
   methods: {
     setValue() {
-      const margin = 25; //Value of margin of the "min" span from left corner
-      const myRange = document.querySelector("#myRange"); // this.$refs.myRange
-      const myValue = document.querySelector("#currentValue"); // this.$refs.currentValue
-      myValue.style.display = ""; // здесь через дерективу style
+      const myRange = this.$refs.range;
+      this.displayAttr = "";
+      
       //Calculating the percentage of the value in between min and max values
       const valueAsPercent =
         (myRange.valueAsNumber - parseInt(myRange.min)) /
         (parseInt(myRange.max) - parseInt(myRange.min));
+
+      // Getting the range slider's bounding rectangle
+      const rangeRect = myRange.getBoundingClientRect();
+
       // Setting the proper "left" attribute for "Value span" of the range
-      myValue.style.left =
-        valueAsPercent * myRange.offsetWidth +
-        (1 - margin * valueAsPercent) +
-        "px"; // шдесь тоже если опрокидываем с помощью дерективы, то просто в data вноси значения и меняй
+      //this.offsetLeft = rangeRect.left + valueAsPercent * rangeRect.width - (this.$refs.currentValue.offsetWidth / 2) - rangeRect.left;
+    
+      const thumbPosition = valueAsPercent * rangeRect.width;
+      const offsetFromRange = rangeRect.left + thumbPosition;
+      const spanWidth = this.$refs.currentValue.offsetWidth;
+      
+      // Adjusting offsetLeft so that the span is centered under the thumb
+      this.offsetLeft = offsetFromRange - (spanWidth);
+
       // Setting the value of "Value span" of the range
-      myValue.innerHTML = myRange.value; // щдесь через дерективу v-html
+      this.yearValue = myRange.value; 
 
-      // change state vueX, dont touch it))))
+      // change state vueX
       this.$store.commit("filters/setYear", this.$refs.range.value);
-      // -------------
-
-      setTimeout(function () {
-        myValue.style.display = "none";
-      }, 1000); // тут почему-то сразу пропадает значение это не работая через setTimeout
+    },
+    hideValueAfterDelay() {
+      this.clearHideTimeout(); // Clear any existing timeout
+      this.hideTimeout = setTimeout(() => {
+        this.displayAttr = "none";
+      }, 1000);
+    },
+    clearHideTimeout() {
+      if (this.hideTimeout) {
+        clearTimeout(this.hideTimeout);
+        this.hideTimeout = null;
+      }
     },
   },
 };
@@ -151,11 +170,17 @@ input[type="range"]::-moz-range-track {
 }
 
 .minValInput,
-.maxValInput {
+.maxValInput,
+.curValInput {
   color: white;
   font-weight: bold;
   display: inline-block;
   margin: 0px 25px;
+}
+.curValInput{
+  position: absolute;
+  background: #212121;
+  margin-top: -70px;
 }
 .maxValInput {
   float: right;
